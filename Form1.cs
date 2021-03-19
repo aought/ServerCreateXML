@@ -51,10 +51,23 @@ namespace ServerCreateXML
         {
             foreach (var file in dirInfo.GetFiles())
             {
+                string hash = GetHash(file.Name);
                 XmlElement fileElement = xmlDoc.CreateElement(String.Empty, "file", string.Empty);
                 fileElement.SetAttribute("name", file.Name);
-                fileElement.SetAttribute("src", ConfigurationManager.AppSettings["serverURL"]);
-                fileElement.SetAttribute("version", Guid.NewGuid().ToString());
+                fileElement.SetAttribute("src", ConfigurationManager.AppSettings["serverURL"]);   
+                fileElement.SetAttribute("version", ConfigurationManager.AppSettings["version"]);
+                fileElement.SetAttribute("hash", ConfigurationManager.AppSettings["hash"]);
+                
+                if (ConfigurationManager.AppSettings["hash"] != hash)
+                {
+                    Configuration configuration = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
+                    int version = Convert.ToInt32(configuration.AppSettings.Settings["version"].Value);
+                    version += 1;
+                    configuration.AppSettings.Settings["version"].Value = version.ToString();
+                    configuration.AppSettings.Settings["hash"].Value = hash;
+                    configuration.Save(ConfigurationSaveMode.Full);
+                    ConfigurationManager.RefreshSection("appSettings");
+                }
                 fileElement.SetAttribute("size", file.Length.ToString());
                 fileElement.SetAttribute("option", "add");
                 rootElement.AppendChild(fileElement);
@@ -65,8 +78,57 @@ namespace ServerCreateXML
             {
                 BuildXML(xmlDoc, rootElement, dir);
             }
+
         }
 
+        public string GetHash(string fileName)
+        {
+            string hash = null;
+            var dir = new DirectoryInfo(@ConfigurationManager.AppSettings["updatePath"]);
+            FileInfo[] files = dir.GetFiles();
+            using (SHA256 sha256 = SHA256.Create())
+            {
+                foreach (var fileInfo in files)
+                {
+                    if (fileInfo.Name == fileName)
+                    {
+                        try
+                        {
+                            FileStream fileStream = fileInfo.Open(FileMode.Open);
+                            fileStream.Position = 0;
+                            byte[] hashValue = sha256.ComputeHash(fileStream);
+                            hash = PrintByteArray(hashValue);
+                            MessageBox.Show(PrintByteArray(hashValue));
+                            fileStream.Close();
+
+                        }
+                        catch (IOException e)
+                        {
+                            MessageBox.Show($"I/O Exception: {e.Message}");
+                        }
+                        catch (UnauthorizedAccessException e)
+                        {
+                            MessageBox.Show($"Access Exception: {e.Message}");
+                        }
+                    }
+                    
+                }
+            }
+            return hash;
+        }
+
+
+        public string PrintByteArray(byte[] byteArray)
+        {
+
+            var sb = new StringBuilder();
+            for (var i = 0; i < byteArray.Length; i++)
+            {
+                var b = byteArray[i];
+                sb.Append(b);
+            }
+            return sb.ToString();
+        }
 
     }
 }
