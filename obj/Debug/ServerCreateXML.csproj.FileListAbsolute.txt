@@ -7,3 +7,4 @@ C:\Users\Empty\Documents\GitHub\ServerCreateXML\ServerCreateXML\obj\Debug\Server
 C:\Users\Empty\Documents\GitHub\ServerCreateXML\ServerCreateXML\obj\Debug\ServerCreateXML.csproj.CoreCompileInputs.cache
 C:\Users\Empty\Documents\GitHub\ServerCreateXML\ServerCreateXML\obj\Debug\ServerCreateXML.exe
 C:\Users\Empty\Documents\GitHub\ServerCreateXML\ServerCreateXML\obj\Debug\ServerCreateXML.pdb
+C:\Users\Empty\Documents\GitHub\ServerCreateXML\ServerCreateXML\bin\Debug\ServerCreateXML.exe.config
