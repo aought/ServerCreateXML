@@ -55,8 +55,7 @@ namespace ServerCreateXML
                 XmlElement fileElement = xmlDoc.CreateElement(String.Empty, "file", string.Empty);
                 fileElement.SetAttribute("name", file.Name);
                 fileElement.SetAttribute("src", ConfigurationManager.AppSettings["serverURL"]);   
-                fileElement.SetAttribute("version", ConfigurationManager.AppSettings["version"]);
-                fileElement.SetAttribute("hash", ConfigurationManager.AppSettings["hash"]);
+                
                 
                 if (ConfigurationManager.AppSettings["hash"] != hash)
                 {
@@ -68,6 +67,8 @@ namespace ServerCreateXML
                     configuration.Save(ConfigurationSaveMode.Full);
                     ConfigurationManager.RefreshSection("appSettings");
                 }
+                fileElement.SetAttribute("version", ConfigurationManager.AppSettings["version"]);
+                fileElement.SetAttribute("hash", ConfigurationManager.AppSettings["hash"]);
                 fileElement.SetAttribute("size", file.Length.ToString());
                 fileElement.SetAttribute("option", "add");
                 rootElement.AppendChild(fileElement);
