@@ -99,7 +99,7 @@ namespace ServerCreateXML
                             fileStream.Position = 0;
                             byte[] hashValue = sha256.ComputeHash(fileStream);
                             hash = PrintByteArray(hashValue);
-                            MessageBox.Show(PrintByteArray(hashValue));
+                            // MessageBox.Show(PrintByteArray(hashValue));
                             fileStream.Close();
 
                         }
