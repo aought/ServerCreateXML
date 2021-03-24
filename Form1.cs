@@ -35,9 +35,13 @@ namespace ServerCreateXML
             XmlElement rootElement = xmlDoc.CreateElement(String.Empty, "updateFiles", string.Empty);
             xmlDoc.AppendChild(rootElement);
 
-            DirectoryInfo dirInfo = new DirectoryInfo(@ConfigurationManager.AppSettings["updatePath"]);
+            // 获取当前路径
+            string path = Directory.GetCurrentDirectory();
+            string updatePath = Path.Combine(path, ConfigurationManager.AppSettings["updatePathName"]);
+            DirectoryInfo dirInfo = new DirectoryInfo(updatePath);
             BuildXML(xmlDoc, rootElement, dirInfo);
-            xmlDoc.Save(@ConfigurationManager.AppSettings["config"]);
+            string configPath = Path.Combine(path, ConfigurationManager.AppSettings["config"]);
+            xmlDoc.Save(configPath);
 
             MessageBox.Show("已生成配置文件");
 
@@ -49,12 +53,17 @@ namespace ServerCreateXML
         /// </summary>
         public void BuildXML(XmlDocument xmlDoc, XmlElement rootElement, DirectoryInfo dirInfo)
         {
+            string serverDownloadNameURL = new DirectoryInfo(".").Name;
+            // 拼接服务器更新文件下载路径：serverDownloadURL = "ftp://192.168.2.113/Debug/EXE"
+            string serverDownloadURL = String.Format("{0}/{1}/{2}", ConfigurationManager.AppSettings["serverURL"], serverDownloadNameURL, dirInfo.Name);
+
             foreach (var file in dirInfo.GetFiles())
             {
-                string hash = GetHash(file.Name);
+                string hash = GetHash(file.Name, dirInfo);
+                
                 XmlElement fileElement = xmlDoc.CreateElement(String.Empty, "file", string.Empty);
                 fileElement.SetAttribute("name", file.Name);
-                fileElement.SetAttribute("src", ConfigurationManager.AppSettings["serverURL"]);   
+                fileElement.SetAttribute("src", serverDownloadURL);   
                 
                 
                 if (ConfigurationManager.AppSettings["hash"] != hash)
@@ -82,10 +91,9 @@ namespace ServerCreateXML
 
         }
 
-        public string GetHash(string fileName)
+        public string GetHash(string fileName, DirectoryInfo dir)
         {
             string hash = null;
-            var dir = new DirectoryInfo(@ConfigurationManager.AppSettings["updatePath"]);
             FileInfo[] files = dir.GetFiles();
             using (SHA256 sha256 = SHA256.Create())
             {
