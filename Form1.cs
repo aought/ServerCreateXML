@@ -57,6 +57,12 @@ namespace ServerCreateXML
             // 拼接服务器更新文件下载路径：serverDownloadURL = "ftp://192.168.2.113/Debug/EXE"
             string serverDownloadURL = String.Format("{0}/{1}/{2}", ConfigurationManager.AppSettings["serverURL"], serverDownloadNameURL, dirInfo.Name);
 
+            // 判断文件夹是否存在，不存在则创建
+            if (!Directory.Exists(dirInfo.FullName))
+            {
+                Directory.CreateDirectory(dirInfo.FullName);
+            }
+
             foreach (var file in dirInfo.GetFiles())
             {
                 string hash = GetHash(file.Name, dirInfo);
