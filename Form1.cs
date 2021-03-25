@@ -52,25 +52,48 @@ namespace ServerCreateXML
             // updatePath=>"C:\\Users\\Empty\\Documents\\GitHub\\ServerCreateXML\\ServerCreateXML\\bin\\Debug\\EXE"
             string updatePath = Path.Combine(path, ConfigurationManager.AppSettings["updatePathName"]);
             DirectoryInfo dirInfo = new DirectoryInfo(updatePath);
-            BuildXML(xmlDoc, rootElement, dirInfo);
             string configPath = Path.Combine(path, ConfigurationManager.AppSettings["config"]);
+            string tempConfigPath = Path.Combine(path, "temp_config.xml");
+            
+
+            if (!File.Exists(configPath))
+            {
+                XmlDocument tempXmlDocument = new XmlDocument();
+
+                XmlDeclaration tempXmlDeclaration = tempXmlDocument.CreateXmlDeclaration("1.0", "UTF-8", null);
+                XmlElement tempRoot = tempXmlDocument.DocumentElement;
+                tempXmlDocument.InsertBefore(tempXmlDeclaration, tempRoot);
+
+                XmlElement tempRootElement = tempXmlDocument.CreateElement(String.Empty, "updateFiles", string.Empty);
+                tempXmlDocument.AppendChild(tempRootElement);
+                tempXmlDocument.Save(configPath);
+                MessageBox.Show("初始化");
+                
+            }
+            
+            File.Copy(configPath, "temp_config.xml");
+            
+
+            BuildXML(xmlDoc, rootElement, dirInfo, tempConfigPath);
             xmlDoc.Save(configPath);
 
             MessageBox.Show("已生成配置文件");
 
-
+            File.Delete(tempConfigPath);
         }
 
         /// <summary>
         /// 组装XML
         /// </summary>
-        public void BuildXML(XmlDocument xmlDoc, XmlElement rootElement, DirectoryInfo dirInfo)
+        public void BuildXML(XmlDocument xmlDoc, XmlElement rootElement, DirectoryInfo dirInfo, string tempConfigPath)
         {
             // 获取业务名称
             // serverDownloadNameURL=>"Debug"
             // string serverDownloadNameURL = new DirectoryInfo(".").Name;
             // 拼接服务器更新文件下载路径：serverDownloadURL = "ftp://192.168.2.113/Debug/EXE"
             // string serverDownloadURL = String.Format("{0}/{1}/{2}", ConfigurationManager.AppSettings["serverURL"], serverDownloadNameURL, dirInfo.Name);
+
+            
 
             // 判断文件夹是否存在，不存在则创建
             if (!Directory.Exists(dirInfo.FullName))
@@ -80,29 +103,44 @@ namespace ServerCreateXML
 
             foreach (var file in dirInfo.GetFiles())
             {
-                string hash = GetHash(file.Name, dirInfo);
-                
+                // string hash = GetHash(file.Name, dirInfo);
+                string hash = GetSHA256(file.FullName);
+
                 XmlElement fileElement = xmlDoc.CreateElement(String.Empty, "file", string.Empty);
                 fileElement.SetAttribute("name", file.Name);
-                fileElement.SetAttribute("src", ConfigurationManager.AppSettings["serverDownloadURL"]);   
+                fileElement.SetAttribute("src", ConfigurationManager.AppSettings["serverDownloadURL"]);
 
-
-
-                if (ConfigurationManager.AppSettings["hash"] != hash)
+                // 此时文件名称为：file.Name，这个值也是生成的XML节点中name属性的值；
+                // 通过这个值来获取该节点的其他属性，比如哈希值和版本号；
+                string localName = file.Name;
+                string localHash = null;
+                int localVersion = 0;
+                XmlDocument xmlDocument = new XmlDocument();
+                xmlDocument.Load(tempConfigPath);
+                XmlNode xmlNode = xmlDocument.SelectSingleNode("updateFiles");
+                XmlNodeList xmlNodeList = xmlNode.ChildNodes;
+                foreach (XmlNode singleXmlNode in xmlNodeList)
                 {
-                    Configuration configuration = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
-                    int version = Convert.ToInt32(configuration.AppSettings.Settings["version"].Value);
-                    version += 1;
-                    configuration.AppSettings.Settings["version"].Value = version.ToString();
-                    configuration.AppSettings.Settings["hash"].Value = hash;
-                    configuration.Save(ConfigurationSaveMode.Full);
-                    ConfigurationManager.RefreshSection("appSettings");
+                    string temp = singleXmlNode.Attributes["name"].Value;
+                    int tempVersion = Convert.ToInt32(singleXmlNode.Attributes["version"].Value);
+                    if (localName == temp)
+                    {
+                        localHash = singleXmlNode.Attributes["hash"].Value;
+                        localVersion = tempVersion;
+                    }
                 }
-                fileElement.SetAttribute("version", ConfigurationManager.AppSettings["version"]);
-                fileElement.SetAttribute("hash", ConfigurationManager.AppSettings["hash"]);
+
+
+                if (localHash != hash)
+                {
+                    localVersion += 1;
+                }
+                fileElement.SetAttribute("version", localVersion.ToString());
+                fileElement.SetAttribute("hash", hash);
                 fileElement.SetAttribute("size", file.Length.ToString());
                 fileElement.SetAttribute("option", "add");
                 rootElement.AppendChild(fileElement);
+
 
             }
             // 递归子文件夹
@@ -116,57 +154,29 @@ namespace ServerCreateXML
                 configuration.Save(ConfigurationSaveMode.Full);
                 ConfigurationManager.RefreshSection("appSettings");
 
-                BuildXML(xmlDoc, rootElement, dir);
+                BuildXML(xmlDoc, rootElement, dir, tempConfigPath);
             }
 
         }
 
-        public string GetHash(string fileName, DirectoryInfo dir)
+        public string GetSHA256(string test)
         {
             string hash = null;
-            FileInfo[] files = dir.GetFiles();
             using (SHA256 sha256 = SHA256.Create())
             {
-                foreach (var fileInfo in files)
+                using (FileStream fileStream = File.OpenRead(test))
                 {
-                    if (fileInfo.Name == fileName)
-                    {
-                        try
-                        {
-                            FileStream fileStream = fileInfo.Open(FileMode.Open);
-                            fileStream.Position = 0;
-                            byte[] hashValue = sha256.ComputeHash(fileStream);
-                            hash = PrintByteArray(hashValue);
-                            // MessageBox.Show(PrintByteArray(hashValue));
-                            fileStream.Close();
+                    byte[] bytes = sha256.ComputeHash(fileStream);
 
-                        }
-                        catch (IOException e)
-                        {
-                            MessageBox.Show($"I/O Exception: {e.Message}");
-                        }
-                        catch (UnauthorizedAccessException e)
-                        {
-                            MessageBox.Show($"Access Exception: {e.Message}");
-                        }
+                    StringBuilder builder = new StringBuilder();
+                    for (int i = 0; i < bytes.Length; i++)
+                    {
+                        builder.Append(bytes[i].ToString("x2"));
                     }
-                    
+                    hash = builder.ToString().ToUpper();
                 }
             }
             return hash;
-        }
-
-
-        public string PrintByteArray(byte[] byteArray)
-        {
-
-            var sb = new StringBuilder();
-            for (var i = 0; i < byteArray.Length; i++)
-            {
-                var b = byteArray[i];
-                sb.Append(b);
-            }
-            return sb.ToString();
         }
 
     }
