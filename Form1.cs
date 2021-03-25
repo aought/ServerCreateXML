@@ -35,8 +35,21 @@ namespace ServerCreateXML
             XmlElement rootElement = xmlDoc.CreateElement(String.Empty, "updateFiles", string.Empty);
             xmlDoc.AppendChild(rootElement);
 
+            // 拼接下载路径
+            // 获取当前目录名称
+            string currentDirName = new DirectoryInfo(".").Name;
+            string serverDownloadURL = String.Format("{0}/{1}/{2}", ConfigurationManager.AppSettings["serverURL"], currentDirName, ConfigurationManager.AppSettings["updatePathName"]);
+            Configuration configuration = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
+            configuration.AppSettings.Settings["serverDownloadURL"].Value = serverDownloadURL;
+            configuration.Save(ConfigurationSaveMode.Full);
+            ConfigurationManager.RefreshSection("appSettings");
+
+
             // 获取当前路径
+            // path=>"C:\\Users\\Empty\\Documents\\GitHub\\ServerCreateXML\\ServerCreateXML\\bin\\Debug"
             string path = Directory.GetCurrentDirectory();
+            // 获取更新文件存放路径
+            // updatePath=>"C:\\Users\\Empty\\Documents\\GitHub\\ServerCreateXML\\ServerCreateXML\\bin\\Debug\\EXE"
             string updatePath = Path.Combine(path, ConfigurationManager.AppSettings["updatePathName"]);
             DirectoryInfo dirInfo = new DirectoryInfo(updatePath);
             BuildXML(xmlDoc, rootElement, dirInfo);
@@ -53,9 +66,11 @@ namespace ServerCreateXML
         /// </summary>
         public void BuildXML(XmlDocument xmlDoc, XmlElement rootElement, DirectoryInfo dirInfo)
         {
-            string serverDownloadNameURL = new DirectoryInfo(".").Name;
+            // 获取业务名称
+            // serverDownloadNameURL=>"Debug"
+            // string serverDownloadNameURL = new DirectoryInfo(".").Name;
             // 拼接服务器更新文件下载路径：serverDownloadURL = "ftp://192.168.2.113/Debug/EXE"
-            string serverDownloadURL = String.Format("{0}/{1}/{2}", ConfigurationManager.AppSettings["serverURL"], serverDownloadNameURL, dirInfo.Name);
+            // string serverDownloadURL = String.Format("{0}/{1}/{2}", ConfigurationManager.AppSettings["serverURL"], serverDownloadNameURL, dirInfo.Name);
 
             // 判断文件夹是否存在，不存在则创建
             if (!Directory.Exists(dirInfo.FullName))
@@ -69,9 +84,10 @@ namespace ServerCreateXML
                 
                 XmlElement fileElement = xmlDoc.CreateElement(String.Empty, "file", string.Empty);
                 fileElement.SetAttribute("name", file.Name);
-                fileElement.SetAttribute("src", serverDownloadURL);   
-                
-                
+                fileElement.SetAttribute("src", ConfigurationManager.AppSettings["serverDownloadURL"]);   
+
+
+
                 if (ConfigurationManager.AppSettings["hash"] != hash)
                 {
                     Configuration configuration = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
@@ -92,6 +108,14 @@ namespace ServerCreateXML
             // 递归子文件夹
             foreach (var dir in dirInfo.GetDirectories())
             {
+                Configuration configuration = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
+                // temp指的是FTP搭建的物理根目录
+                string temp = dirInfo.Parent.Parent.FullName;
+                // MessageBox.Show(temp);
+                configuration.AppSettings.Settings["serverDownloadURL"].Value = dir.FullName.Replace(temp, configuration.AppSettings.Settings["serverURL"].Value).Replace("\\", "/");
+                configuration.Save(ConfigurationSaveMode.Full);
+                ConfigurationManager.RefreshSection("appSettings");
+
                 BuildXML(xmlDoc, rootElement, dir);
             }
 
