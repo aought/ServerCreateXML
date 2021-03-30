@@ -39,6 +39,7 @@ namespace ServerCreateXML
             // 获取当前目录名称
             string currentDirName = new DirectoryInfo(".").Name;
             string serverDownloadURL = String.Format("{0}/{1}/{2}", ConfigurationManager.AppSettings["serverURL"], currentDirName, ConfigurationManager.AppSettings["updatePathName"]);
+            // 此段可略去
             Configuration configuration = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
             configuration.AppSettings.Settings["serverDownloadURL"].Value = serverDownloadURL;
             configuration.Save(ConfigurationSaveMode.Full);
@@ -49,12 +50,15 @@ namespace ServerCreateXML
             // path=>"C:\\Users\\Empty\\Documents\\GitHub\\ServerCreateXML\\ServerCreateXML\\bin\\Debug"
             string path = Directory.GetCurrentDirectory();
             // 获取更新文件存放路径
-            // updatePath=>"C:\\Users\\Empty\\Documents\\GitHub\\ServerCreateXML\\ServerCreateXML\\bin\\Debug\\EXE"
+            // updatePath=>"C:\\Users\\Empty\\Documents\\GitHub\\ServerCreateXML\\ServerCreateXML\\bin\\Debug\\VersionFolder"
             string updatePath = Path.Combine(path, ConfigurationManager.AppSettings["updatePathName"]);
             DirectoryInfo dirInfo = new DirectoryInfo(updatePath);
             string configPath = Path.Combine(path, ConfigurationManager.AppSettings["config"]);
             string tempConfigPath = Path.Combine(path, "temp_config.xml");
-            
+
+            // 获取父路径
+            string parentFolder = new DirectoryInfo("..").FullName;
+
 
             if (!File.Exists(configPath))
             {
@@ -74,7 +78,7 @@ namespace ServerCreateXML
             File.Copy(configPath, "temp_config.xml");
             
 
-            BuildXML(xmlDoc, rootElement, dirInfo, tempConfigPath);
+            BuildXML(xmlDoc, rootElement, dirInfo, tempConfigPath, parentFolder);
             xmlDoc.Save(configPath);
 
             MessageBox.Show("已生成配置文件");
@@ -85,7 +89,7 @@ namespace ServerCreateXML
         /// <summary>
         /// 组装XML
         /// </summary>
-        public void BuildXML(XmlDocument xmlDoc, XmlElement rootElement, DirectoryInfo dirInfo, string tempConfigPath)
+        public void BuildXML(XmlDocument xmlDoc, XmlElement rootElement, DirectoryInfo dirInfo, string tempConfigPath, string parentFolder)
         {
             // 获取业务名称
             // serverDownloadNameURL=>"Debug"
@@ -93,7 +97,7 @@ namespace ServerCreateXML
             // 拼接服务器更新文件下载路径：serverDownloadURL = "ftp://192.168.2.113/Debug/EXE"
             // string serverDownloadURL = String.Format("{0}/{1}/{2}", ConfigurationManager.AppSettings["serverURL"], serverDownloadNameURL, dirInfo.Name);
 
-            
+            // 此时传入的dirInfo是new DirectoryInfo(updatePath)即updatePath=>"C:\\Users\\Empty\\Documents\\GitHub\\ServerCreateXML\\ServerCreateXML\\bin\\Debug\\VersionFolder"
 
             // 判断文件夹是否存在，不存在则创建
             if (!Directory.Exists(dirInfo.FullName))
@@ -148,13 +152,17 @@ namespace ServerCreateXML
             {
                 Configuration configuration = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
                 // temp指的是FTP搭建的物理根目录
-                string temp = dirInfo.Parent.Parent.FullName;
+                // TODO:
+                // "C:\\Users\\Empty\\Documents\\GitHub\\ServerCreateXML\\ServerCreateXML\\bin" => "C:\\Users\\Empty\\Documents\\GitHub\\ServerCreateXML\\ServerCreateXML\\bin\\Debug"
+                // 多次递归之后变化
+                // string temp = dirInfo.Parent.Parent.FullName;
+                string temp = parentFolder;
                 // MessageBox.Show(temp);
                 configuration.AppSettings.Settings["serverDownloadURL"].Value = dir.FullName.Replace(temp, configuration.AppSettings.Settings["serverURL"].Value).Replace("\\", "/");
                 configuration.Save(ConfigurationSaveMode.Full);
                 ConfigurationManager.RefreshSection("appSettings");
 
-                BuildXML(xmlDoc, rootElement, dir, tempConfigPath);
+                BuildXML(xmlDoc, rootElement, dir, tempConfigPath, parentFolder);
             }
 
         }
